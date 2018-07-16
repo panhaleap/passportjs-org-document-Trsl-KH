@@ -1,0 +1,124 @@
+Ref: http://www.passportjs.org/docs/configure/
+
+Configure
+
+ ត្រូវមាន 3 ផ្នែកក្នុងការConfigured ទៅអោយ Passport ដើម្បីធ្វើ authentication:
+	1.Authentication stategies
+	2.Application Middleware
+	3.Session(Optional)
+
+Strategies
+
+Passport ប្រើប្រាស់ Strategies ដើម្បីធ្វើ authenticate requests. 
+Strategies range ពី Verify Username និង password, delegated (ប្រតិភូកម្ម)  
+authentication ដោយប្រើប្រាស់ OAuth រឺ federated (សហព័ន្ធ)  authentication ដោយប្រើ 
+OPenID ។
+
+មុនពេល ស្នើរសុំ Passport ដើម្បីធ្វើ Authenticate ក្នុងការRequest អីមួយ, stategy 
+( ឬ stategies ) ត្រូវបានប្រើប្រាស់ ដោយ application ណា ដែលត្រូវតែ មាន Configured រួចរាល់ត្រឹមត្រូវ។
+
+stategies និង Configuration របស់វា, ត្រូវបានSupplied តាមរយៈ function user() 
+ឧទាហរណ៍៖ ខាងក្រោមនេះ ប្រើប្រាស់ LocalStrategy 
+ដើម្បីធ្វើ Authentication លើ username/password
+
+var passport = require('passport')
+  , LocalStrategy = require('passport-local').Strategy;
+
+passport.use(new LocalStrategy(
+  function(username, password, done) {
+    User.findOne({ username: username }, function (err, user) {
+      if (err) { return done(err); }
+      if (!user) {
+        return done(null, false, { message: 'Incorrect username.' });
+      }
+      if (!user.validPassword(password)) {
+        return done(null, false, { message: 'Incorrect password.' });
+      }
+      return done(null, user);
+    });
+  }
+));
+
+
+===============
+
+Verify Callback
+
+Strategies  ត្រូវការ Verify Callback, គោលបំណងនៃការប្រើ Verify Callback
+គឺដើម្បី រកមើល User ដែលជាម្ចាស់ Credentials (Username, Password) ។
+
+ពេលដែល Passport ធ្វើ authenticate ចំពោះ request 
+ណាមួយនោះ, វាញែក Credentials ដែលផ្ទុកក្នុង request។
+
+បន្ទាប់មក វា invokes ( ហៅ)  verify callback ដោយនាំមកជាមួយនឹង Credentials 
+ក្នុងលក្ខណៈជា arguments, ក្នុង ពួកវាជា username និង password។ 
+
+បើសិន Valid Credentials ហើយនោះ, នាំអោយ verify callback ទៅហៅ done 
+ដើម្បី ផ្ដល់ទៅគេវិញ នូវ  Passport ដែលនឹងដាក់បញ្ចូល ser 
+ដែលត្រូវបានធ្វើ authenticate រួចរាល់។
+
+Example: return done(null, user);
+
+បើសិនជា credential មិន Validទេ (   ឧទាហរណ៍៖ ខុស Password), នាំអោយទៅហៅ 
+done ដោយ  បោះ false ជំនួសអោយ user 
+
+Example: return done(null, false);
+
+ពត៌មានបន្ថែមផ្សេងទៀត អាចដាក់ដើម្បីបញ្ជាក់ ថា failure ដោយសារអី។ 
+Example: return done(null, false, { message: 'Incorrect password.' });
+
+ចុងក្រោយ, បើសិនជា មាន exception កើតឡើង ខណៈដែល កំពុង 
+verify credential ( ឧទាហរណ៍៖  ដាច់Connection database), នាំអោយ
+ទៅ ហៅ done ដោយដាក់ error ធ្វើបែបនេះ ក្នុងទម្រង់ Node Style  
+
+Example: return done(err);
+
+សូមសម្គាល់៖ ជាប្រការសំខាន់ណាស់ ក្នុងការកំណត់ failure ពីរករណី ដែលអាចកើតឡើង។ 
+latter ជា server exception, ដែល err វា តម្លៃ non-null។
+
+ដោយ ធ្វើ delegating (ប្រតិភូកម្ម) ,  verify callback រក្សាទុក 
+Passport database ដោយមិនដឹងខ្លួន។ 
+
+===============
+
+Middleware
+
+ក្នុង Connect ឬ  Express-base application, 
+ត្រូវការ middleware passport.innitialize() ដើម្បី 
+innitialize passport។
+
+បើសិន application ប្រើ persistent login sessions, នោះ ត្រូវតែប្រើ
+middleware passport.session() 
+
+app.configure(function() {
+  app.use(express.static('public'));
+  app.use(express.cookieParser());
+  app.use(express.bodyParser());
+  app.use(express.session({ secret: 'keyboard cat' }));
+  app.use(passport.initialize());
+  app.use(passport.session());
+  app.use(app.router);
+});
+
+
+
+ក្នុង ឧទាហរណ៍ នេះ, មានតែ user ID ទេ ដែលត្រូវបាន​ serialized ទៅក្នុង session, 
+ធ្វើបែបនេះ ដើម្បី រក្សា បរិមាណ នៃទិន្នន័យដែលរក្សាក្នុងSession អោយមានទំហំតូច។
+
+ពេលដែល ទទួល Subsequent request, នោះ ID នេះ នឹងធ្វើប្រើដើម្បី find user ដោយប្រើ
+req.user ។
+
+Application ផ្ដល់ Serialization និង deserialization logic, អនុញ្ញាតិ
+អោយ Application ធ្វើការ ជ្រើសរើស ប្រភេទ Database ដែលសមស្រប ដោយគ្មានការ
+ហាមប្រាម ពី authentication layer ។
+
+
+
+
+
+
+
+
+
+
+
